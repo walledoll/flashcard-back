@@ -1,11 +1,10 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Get a free hosted Postgres database in seconds: `npx create-db`
-
 generator client {
   provider = "prisma-client"
   output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
 }
 
 enum AuthMethod {
@@ -14,15 +13,62 @@ enum AuthMethod {
   GITHUB
 }
 
-datasource db {
-  provider = "postgresql"
+model User {
+  id           Int        @default(autoincrement()) @id
+  email        String     @unique
+  name         String
+  passwordHash String?
+  authMethod   AuthMethod @default(GOOGLE)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  sessions Session[]
+  decks    Deck[]
+  cards    Card[]
 }
 
-model User {
-  id Int @default(autoincrement()) @id
-  email String @unique
-  name String
-  passwordHash String?
-  authMethod AuthMethod
+model Session {
+  id        String   @id @default(cuid())
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  token     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
 
+  @@index([userId])
+}
+
+model Deck {
+  id          Int      @default(autoincrement()) @id
+  title       String
+  description String?
+  userId      Int
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  isPublic    Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  cards Card[]
+
+  @@index([userId])
+  @@index([isPublic])
+}
+
+model Card {
+  id           Int       @default(autoincrement()) @id
+  front        String // Вопрос/термин
+  back         String // Ответ/определение
+  deckId       Int
+  deck         Deck      @relation(fields: [deckId], references: [id], onDelete: Cascade)
+  userId       Int
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  difficulty   Int       @default(3) // 1-5, где 5 - самый сложный
+  lastReviewed DateTime?
+  reviewCount  Int       @default(0)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@index([deckId])
+  @@index([userId])
+  @@index([difficulty])
 }
